@@ -1,5 +1,6 @@
 import React, { useRef } from 'react'
 import { scaleTime, scaleLinear } from 'd3-scale'
+// import { rescaleX, rescaleY } from 'd3-zoom'
 import { extent } from 'd3-array'
 import { useZoom } from '../lib/hooks/useZoom'
 import rawDataset from '../dataset/dataset.csv'
@@ -18,23 +19,32 @@ const RADIUS = 5
 const MARGINS = { top: RADIUS * 2, right: RADIUS, bottom: 50, left: 50 }
 
 export const Scatterplot: React.FC<Props> = ({ className = '' }) => {
-  const zoomBaseRef = useRef(null)
-  const transform = useZoom(zoomBaseRef)
-  console.log(transform);
-  // const { x, y, k } = transform
 
   const dates = dataset.map(d => new Date(d.date))
   const xDomain = extent(dates)
-  const xScale = scaleTime().domain(xDomain).range([MARGINS.left, WIDTH - MARGINS.right]).nice()
+  const xScaleInitial = scaleTime().domain(xDomain).range([MARGINS.left, WIDTH - MARGINS.right]).nice()
 
   const heights = dataset.map(d => d.height)
   const yDomain = extent(heights)
-  const yScale = scaleLinear().domain(yDomain).range([HEIGHT - MARGINS.bottom, MARGINS.top]).nice()
+  const yScaleInitial = scaleLinear().domain(yDomain).range([HEIGHT - MARGINS.bottom, MARGINS.top]).nice()
 
-  const xLeft = xScale.range()[0]
-  const xRight = xScale.range()[1]
-  const yTop = yScale.range()[1]
-  const yBottom = yScale.range()[0]
+  const xLeft = xScaleInitial.range()[0]
+  const xRight = xScaleInitial.range()[1]
+  const yTop = yScaleInitial.range()[1]
+  const yBottom = yScaleInitial.range()[0]
+
+  /////// 
+
+  const zoomBaseRef = useRef(null)
+  const [transform, xScale, yScale] = useZoom(zoomBaseRef, xScaleInitial, yScaleInitial)
+  const { x, y, k } = transform
+
+  ///////
+
+  // console.log('xScale: ', xScale.domain(), xScale.range())
+  // console.log('yScale: ', yScale.domain(), yScale.range())
+
+  ///////
 
   return (
     <svg className={`${className}`} x={0} y={0} width={WIDTH} height={HEIGHT} >
@@ -46,7 +56,7 @@ export const Scatterplot: React.FC<Props> = ({ className = '' }) => {
       {/* zoom base */}
       <rect x={xLeft} y={yTop} width={xRight - xLeft} height={yBottom - yTop} fill="tomato" fillOpacity={0.2} ref={zoomBaseRef} />
 
-      <g className="-dots">
+      <g className="-dots" transform={`translate(${x}, ${y}) scale(${k})`}>
         {dataset.map((d, i) => {
           const cx = xScale(new Date(d.date))
           const cy = yScale(d.height)
@@ -56,20 +66,6 @@ export const Scatterplot: React.FC<Props> = ({ className = '' }) => {
       </g>
 
       <Axes xScale={xScale} yScale={yScale} />
-
-      {/* <g transform={`translate(${x}, ${y}) scale(${k})`}>
-        <rect x={0} y={0} width={WIDTH} height={HEIGHT} fill="teal" />
-        <text
-          x={WIDTH / 2}
-          y={HEIGHT / 2}
-          fill="white"
-          textAnchor="middle"
-          dominantBaseline="middle"
-        >
-          Hello world!
-            </text>
-        <circle cx={WIDTH / 3} cy={HEIGHT / 3} r={5} fill="tomato" />
-      </g> */}
     </svg>
   )
 }
